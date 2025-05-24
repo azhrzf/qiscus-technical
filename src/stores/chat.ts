@@ -120,14 +120,6 @@ export const useChatStore = defineStore('chat', () => {
         }
     }
 
-    for (const room of rooms.value) {
-        if (roomMessages.value[room.room_id]) {
-            (room as any).messages = roomMessages.value[room.room_id]
-        } else {
-            (room as any).messages = []
-        }
-    }
-
     return {
         rooms,
         selectedRoomId,
