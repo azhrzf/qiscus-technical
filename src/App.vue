@@ -5,7 +5,11 @@ import RoomPanel from './components/feature/Room/RoomPanel.vue'
 
 <template>
   <div class="grid grid-cols-12 h-screen bg-[#ffffff] relative overflow-hidden">
-    <RoomPanel :rooms="rooms" @selectRoom="selectRoom" />
-    <RouterView/>
+    <aside class="col-span-12 md:col-span-4">
+      <RoomPanel />
+    </aside>
+    <main class="max-h-screen overflow-y-auto col-span-12 md:col-span-8">
+      <RouterView />
+    </main>
   </div>
 </template>

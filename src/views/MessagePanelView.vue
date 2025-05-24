@@ -13,26 +13,27 @@ const router = useRouter()
 const chatStore = useChatStore()
 const uiStore = useUIStore()
 
-// Use storeToRefs for reactive store state
 const { selectedRoom, currentMessages, error } = storeToRefs(chatStore)
 const { showChatView } = storeToRefs(uiStore)
 
-// Watch for route changes and select room
 watch(() => route.params.roomId, (roomId) => {
   if (roomId && typeof roomId === 'string') {
     chatStore.selectRoom(roomId)
     uiStore.toggleChatView(true)
+  } else {
+    uiStore.toggleChatView(false)
   }
 }, { immediate: true })
 
 const backToList = () => {
+  router.push('/chat')
   uiStore.toggleChatView(false)
 }
 </script>
 
 <template>
   <main
-    class="col-span-12 md:col-span-8 flex-1 flex flex-col absolute md:relative inset-0 transition-transform duration-300 ease-in-out"
+    class="h-full flex-1 flex flex-col absolute md:relative inset-0 transition-transform duration-300 ease-in-out"
     :class="showChatView ? 'translate-x-0' : 'translate-x-full md:translate-x-0'">
     <div v-if="error" class="p-4 bg-red-100 border-b border-red-200 text-red-700">
       {{ error }}

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import roomsData from '@/data/list_rooms.json'
-import messageData from '@/data/list_messages.json'
+import roomsDataJson from '@/data/list_rooms.json'
+import messageDataJson from '@/data/list_messages.json'
 
 export interface Room {
   channel_id: number
@@ -44,46 +44,74 @@ export interface Message {
 }
 
 export const useChatStore = defineStore('chat', () => {
-  const rooms = ref<Room[]>(roomsData.data.customer_rooms)
-  const roomMessages = ref<Record<string, Message[]>>(messageData as Record<string, Message[]>)
+  const rooms = ref<Room[]>(roomsDataJson.data.customer_rooms)
+  const messageData: Record<string, Message[]> = messageDataJson as Record<string, Message[]>
+  const mergedRoomsMessages = (() => {
+    const merged: Record<string, Message[]> = {}
+
+    Object.keys(messageData).forEach((roomId) => {
+      merged[roomId] = [...messageData[roomId]]
+    })
+
+    rooms.value.forEach((room) => {
+      const roomId = room.room_id
+
+      if (!merged[roomId]) {
+        merged[roomId] = []
+      }
+
+      const lastCommentExists = merged[roomId].some(
+        (msg) =>
+          msg.timestamp === room.last_comment_timestamp &&
+          msg.sender_id === room.last_comment_sender &&
+          msg.text === room.last_comment_text,
+      )
+
+      if (!lastCommentExists && room.last_comment_text) {
+        const lastCommentMessage: Message = {
+          id: `room-last-${roomId}`,
+          room_id: roomId,
+          sender_id: room.last_comment_sender,
+          sender_type: room.last_comment_sender_type as 'customer' | 'agent' | 'system',
+          text: room.last_comment_text,
+          timestamp: room.last_comment_timestamp,
+          type: 'text',
+        }
+
+        merged[roomId].push(lastCommentMessage)
+      }
+
+      merged[roomId].sort(
+        (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+      )
+    })
+
+    return merged
+  })()
+
+  const roomMessages = ref<Record<string, Message[]>>(mergedRoomsMessages)
   const selectedRoomId = ref<string | null>(null)
-  const isLoading = ref(false)
   const error = ref<string | null>(null)
 
   const selectedRoom = computed(() =>
-    selectedRoomId.value ? rooms.value.find(room => room.room_id === selectedRoomId.value) || null : null
+    selectedRoomId.value
+      ? rooms.value.find((room) => room.room_id === selectedRoomId.value) || null
+      : null,
   )
 
   const currentMessages = computed(() =>
-    selectedRoomId.value ? roomMessages.value[selectedRoomId.value] || [] : []
+    selectedRoomId.value ? roomMessages.value[selectedRoomId.value] || [] : [],
   )
 
-  const getRoomById = computed(() =>
-    (roomId: string) => rooms.value.find(room => room.room_id === roomId) || null
-  )
-
-  const getMessagesByRoomId = computed(() =>
-    (roomId: string) => roomMessages.value[roomId] || []
-  )
-
-  const roomsCount = computed(() => rooms.value.length)
-
-  const hasMessages = computed(() =>
-    selectedRoomId.value ? (roomMessages.value[selectedRoomId.value]?.length || 0) > 0 : false
-  )
+  const getMessagesByRoomId = computed(() => (roomId: string) => roomMessages.value[roomId] || [])
 
   function selectRoom(roomId: string) {
-    if (rooms.value.find(room => room.room_id === roomId)) {
+    if (rooms.value.find((room) => room.room_id === roomId)) {
       selectedRoomId.value = roomId
       error.value = null
     } else {
       error.value = `Room with ID ${roomId} not found`
     }
-  }
-
-  function clearSelection() {
-    selectedRoomId.value = null
-    error.value = null
   }
 
   function sendMessage(text: string, product?: ProductMessage) {
@@ -99,14 +127,14 @@ export const useChatStore = defineStore('chat', () => {
 
     try {
       const newMessage: Message = {
-        id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
         room_id: selectedRoomId.value,
         sender_id: 'me',
         sender_type: 'agent',
-        text: product ? product.name : text.trim(),
+        text: product ? text || product.name : text.trim(),
         timestamp: new Date().toISOString(),
         type: product ? 'product' : 'text',
-        ...(product && { product })
+        ...(product && { product }),
       }
 
       if (!roomMessages.value[selectedRoomId.value]) {
@@ -114,7 +142,6 @@ export const useChatStore = defineStore('chat', () => {
       }
 
       roomMessages.value[selectedRoomId.value].push(newMessage)
-
       updateRoomLastMessage(selectedRoomId.value, newMessage)
 
       error.value = null
@@ -126,7 +153,7 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   function updateRoomLastMessage(roomId: string, message: Message) {
-    const room = rooms.value.find(r => r.room_id === roomId)
+    const room = rooms.value.find((r) => r.room_id === roomId)
     if (room) {
       room.last_comment_sender = 'agent@example.com'
       room.last_comment_sender_type = 'agent'
@@ -135,53 +162,15 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
-  function addRoom(room: Room) {
-    if (!rooms.value.find(r => r.room_id === room.room_id)) {
-      rooms.value.unshift(room)
-    }
-  }
-
-  function removeRoom(roomId: string) {
-    const index = rooms.value.findIndex(room => room.room_id === roomId)
-    if (index > -1) {
-      rooms.value.splice(index, 1)
-      if (selectedRoomId.value === roomId) {
-        selectedRoomId.value = null
-      }
-      delete roomMessages.value[roomId]
-    }
-  }
-
-  function searchRooms(query: string) {
-    return computed(() =>
-      rooms.value.filter(room =>
-        room.name.toLowerCase().includes(query.toLowerCase()) ||
-        room.user_id.toLowerCase().includes(query.toLowerCase()) ||
-        room.last_comment_text.toLowerCase().includes(query.toLowerCase())
-      )
-    )
-  }
-
-  function $reset() {
-    rooms.value = roomsData.data.customer_rooms
-    roomMessages.value = messageData as Record<string, Message[]>
-    selectedRoomId.value = null
-    isLoading.value = false
-    error.value = null
-  }
-
   return {
     rooms,
     roomMessages,
     selectedRoomId,
-    isLoading,
     error,
     selectedRoom,
     currentMessages,
-    getRoomById,
     getMessagesByRoomId,
-    roomsCount,
-    hasMessages,
     selectRoom,
+    sendMessage,
   }
 })

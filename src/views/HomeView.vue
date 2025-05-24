@@ -1,9 +1,5 @@
-<script setup lang="ts">
-import TheWelcome from '../components/TheWelcome.vue'
-</script>
-
 <template>
-  <main>
-    <TheWelcome />
+  <main class="flex items-center justify-center h-full">
+    <p>Select a chat to start messaging</p>
   </main>
 </template>
