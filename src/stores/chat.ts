@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import roomsData from '@/assets/list_rooms.json'
-import messageData from '@/assets/list_messages.json'
+import roomsData from '@/data/list_rooms.json'
+import messageData from '@/data/list_messages.json'
 
 export interface Room {
     channel_id: number
