@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type { Room } from '@/stores/chat';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-vue-next';
 
 defineProps<{
     selectedRoom: Room,
